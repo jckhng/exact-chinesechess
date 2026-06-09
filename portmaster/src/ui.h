@@ -13,6 +13,7 @@
 void ui_log_sdl_drivers(void);
 void ui_load_assets(App *app);
 void ui_destroy_assets(App *app);
+void ui_draw_loading(App *app, const char *message);
 void ui_clamp_pointer(App *app);
 void ui_warp_mouse_to_pointer(App *app);
 bool ui_update_pointer(App *app);

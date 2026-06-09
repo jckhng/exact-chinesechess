@@ -16,6 +16,7 @@ __pycache__/
 /portmaster/exactcc
 /portmaster/exact_chinesechess
 /portmaster/exact_chinesechess*.zip
+/portmaster/exact_chinesechess*.zip.sha256
 /portmaster/exact_chinesechess_muos_package.tar.gz
 /portmaster/*.png
 /portmaster/port/exact_chinesechess/exact_chinesechess/exactcc.*
@@ -33,3 +34,4 @@ __pycache__/
 *~
 .DS_Store
 * - Copy.png
+*:Zone.Identifier

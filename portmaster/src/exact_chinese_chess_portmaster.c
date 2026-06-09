@@ -16,6 +16,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#define APP_LOGICAL_WIDTH 640
+#define APP_LOGICAL_HEIGHT 480
+
 int main(int argc, char **argv) {
     App app;
     SDL_Event event;
@@ -28,8 +31,8 @@ int main(int argc, char **argv) {
     srand((unsigned int)time(NULL) ^ (unsigned int)getpid());
 
     memset(&app, 0, sizeof(app));
-    app.width = 640;
-    app.height = 480;
+    app.width = APP_LOGICAL_WIDTH;
+    app.height = APP_LOGICAL_HEIGHT;
     app.running = true;
     app.ai_enabled = false;
     app.ai_pending = false;
@@ -61,19 +64,22 @@ int main(int argc, char **argv) {
 
     app.window = SDL_CreateWindow("Exact Chinese Chess",
                                   SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                  app.width, app.height,
+                                  APP_LOGICAL_WIDTH, APP_LOGICAL_HEIGHT,
                                   SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP);
     if (!app.window) {
         fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
-    SDL_GetWindowSize(app.window, &app.width, &app.height);
-    fprintf(stderr, "Window size: %dx%d\n", app.width, app.height);
-    if (app.width >= 560) {
-        app.pointer_x = app.width - 160;
-        app.pointer_y = 72;
+    {
+        int window_w;
+        int window_h;
+        SDL_GetWindowSize(app.window, &window_w, &window_h);
+        fprintf(stderr, "Window size: %dx%d, logical size: %dx%d\n",
+                window_w, window_h, app.width, app.height);
     }
+    app.pointer_x = app.width - 160;
+    app.pointer_y = 72;
     SDL_ShowCursor(SDL_DISABLE);
 
     app.renderer = SDL_CreateRenderer(app.window, -1, SDL_RENDERER_SOFTWARE);
@@ -93,7 +99,9 @@ int main(int argc, char **argv) {
             fprintf(stderr, "Renderer: %s flags=0x%x\n", info.name, info.flags);
         }
     }
-    SDL_RenderSetLogicalSize(app.renderer, app.width, app.height);
+    SDL_RenderSetLogicalSize(app.renderer, APP_LOGICAL_WIDTH, APP_LOGICAL_HEIGHT);
+    ui_draw_loading(&app, "LOADING ENGINE");
+    SDL_RenderPresent(app.renderer);
     ui_warp_mouse_to_pointer(&app);
     input_open_controllers(&app);
     ui_load_assets(&app);

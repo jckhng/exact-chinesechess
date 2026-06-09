@@ -36,19 +36,23 @@ Keyboard fallback for desktop testing: arrows, Enter/Space, Esc, `u`, `n`,
 Build with the PortMaster aarch64 builder:
 
 ```sh
-cd path/to/repo-root
+cd path/to/exact-chinesechess
 docker run --rm --platform=linux/arm64 \
-  -v "$PWD/exact-chinesechess:/src/exact-chinesechess" \
+  -v "$PWD:/src/exact-chinesechess" \
   -w /src/exact-chinesechess/portmaster \
   ghcr.io/monkeyx-net/portmaster-build-templates/portmaster-builder:aarch64-latest \
   make clean all package-layout DEVICE_ARCH=aarch64
 ```
 
+Run this from the `exact-chinesechess` repo root. If you are one directory
+above it, change the volume mount to
+`-v "$PWD/exact-chinesechess:/src/exact-chinesechess"`.
+
 Strip the binary:
 
 ```sh
 docker run --rm --platform=linux/arm64 \
-  -v "$PWD/exact-chinesechess:/src/exact-chinesechess" \
+  -v "$PWD:/src/exact-chinesechess" \
   -w /src/exact-chinesechess/portmaster \
   ghcr.io/monkeyx-net/portmaster-build-templates/portmaster-builder:aarch64-latest \
   strip exactcc port/exact_chinesechess/exact_chinesechess/exactcc.aarch64
@@ -80,38 +84,86 @@ cd exact-chinesechess
 
 ## Package
 
-The release skeleton lives at:
+The source staging tree lives at:
 
 ```text
 port/exact_chinesechess/
+  Exact Chinese Chess.sh
+  port.json
+  README.md
+  screenshot.png
+  gameinfo.xml
+  exact_chinesechess/
+    exactcc.aarch64
+    assets/
+    bin/
+    licenses/
 ```
 
-Create the copy-ready package:
+For PortMaster autoinstall, the zip must contain the contents of that staging
+folder, not the staging folder itself. The root of the zip should look like:
+
+```text
+Exact Chinese Chess.sh
+exact_chinesechess/
+  exactcc.aarch64
+  assets/
+  bin/
+  licenses/
+  port.json
+  README.md
+  README.txt
+  screenshot.png
+  gameinfo.xml
+```
+
+This is easy to get wrong. If the zip root is
+`exact_chinesechess/Exact Chinese Chess.sh` instead, autoinstall can place an
+extra directory level around the launcher and the port may not appear or launch
+correctly.
+
+Create the autoinstall zip from the staging folder like this:
 
 ```sh
-cd path/to/repo-root
+cd path/to/exact-chinesechess
 workdir="$(mktemp -d)"
-mkdir -p "$workdir/ports" "$workdir/ROMS/Ports"
-cp -a exact-chinesechess/portmaster/port/exact_chinesechess "$workdir/ports/"
-cp "exact-chinesechess/portmaster/port/exact_chinesechess/Exact Chinese Chess.sh" \
-  "$workdir/ROMS/Ports/Exact Chinese Chess.sh"
-tar -czf exact-chinesechess/portmaster/exact_chinesechess_muos_package.tar.gz \
-  -C "$workdir" .
+cp -a portmaster/port/exact_chinesechess/. "$workdir/"
+mv "$workdir/port.json" "$workdir/exact_chinesechess/"
+mv "$workdir/README.md" "$workdir/exact_chinesechess/"
+mv "$workdir/screenshot.png" "$workdir/exact_chinesechess/"
+mv "$workdir/gameinfo.xml" "$workdir/exact_chinesechess/"
+python3 - <<PY
+from pathlib import Path
+from zipfile import ZipFile, ZIP_DEFLATED
+
+root = Path("$workdir")
+out = Path("portmaster/exact_chinesechess.zip")
+with ZipFile(out, "w", ZIP_DEFLATED, compresslevel=9) as zf:
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            zf.write(path, path.relative_to(root).as_posix())
+PY
 rm -rf "$workdir"
 ```
 
-For PortMaster upstream submission, zip `port/exact_chinesechess/` following
-the official packaging structure.
+The launcher should use the autoinstall runtime root:
+
+```sh
+GAMEDIR=/$directory/ports/exact_chinesechess/
+BIN="$GAMEDIR/exactcc.${DEVICE_ARCH}"
+cd "$GAMEDIR" || exit 1
+```
 
 ## Release Checklist
 
-- `port.json` is present and currently advertises `aarch64`.
-- `README.md` is present in the port folder.
-- `screenshot.png` is present, 640x480, and shows gameplay.
-- `gameinfo.xml` is present.
-- `Exact Chinese Chess.sh` is present.
+- Zip root contains `Exact Chinese Chess.sh`.
+- Zip root contains `exact_chinesechess/`.
+- `exact_chinesechess/port.json` is present and currently advertises `aarch64`.
+- `exact_chinesechess/README.md` is present.
+- `exact_chinesechess/screenshot.png` is present, 640x480, and shows gameplay.
+- `exact_chinesechess/gameinfo.xml` is present.
 - `exact_chinesechess/` contains the runtime files and licenses.
-- `exactcc.aarch64` is stripped.
+- `exact_chinesechess/exactcc.aarch64` is stripped.
 - The launcher passes `bash -n`.
 - Pikafish GPL, author, and source notices are included when the bundled
   Pikafish binary is packaged.

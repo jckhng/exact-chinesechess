@@ -246,6 +246,23 @@ void ui_destroy_assets(App *app) {
     }
 }
 
+void ui_draw_loading(App *app, const char *message) {
+    SDL_Renderer *r = app->renderer;
+    int cx = app->width / 2;
+    int cy = app->height / 2;
+    SDL_Rect outline = { cx - 94, cy + 32, 188, 10 };
+    SDL_Rect fill = { cx - 90, cy + 35, 180, 4 };
+
+    set_color(r, 222, 218, 199, 255);
+    SDL_RenderClear(r);
+    set_color(r, 25, 25, 25, 255);
+    draw_text_title(r, "EXACT CHINESE CHESS", cx - ((int)strlen("EXACT CHINESE CHESS") * 7) / 2, cy - 70);
+    draw_text_mid_bold(r, message, cx - ((int)strlen(message) * 8) / 2, cy - 18);
+    draw_text(r, "PLEASE WAIT", cx - 33, cy + 8, 1);
+    SDL_RenderDrawRect(r, &outline);
+    SDL_RenderFillRect(r, &fill);
+}
+
 static int board_size(const App *app) {
     int usable_h = app->height - 24;
     int usable_w = app->width < 560 ? app->width - 24 : app->width - 190;
@@ -283,7 +300,17 @@ void ui_warp_mouse_to_pointer(App *app) {
         return;
     }
     if (app->renderer) {
+#if SDL_VERSION_ATLEAST(2, 0, 18)
         SDL_RenderLogicalToWindow(app->renderer, (float)app->pointer_x, (float)app->pointer_y, &x, &y);
+#else
+        int window_w;
+        int window_h;
+        SDL_GetWindowSize(app->window, &window_w, &window_h);
+        if (app->width > 0 && app->height > 0) {
+            x = (app->pointer_x * window_w) / app->width;
+            y = (app->pointer_y * window_h) / app->height;
+        }
+#endif
     }
     SDL_WarpMouseInWindow(app->window, x, y);
 }
@@ -346,6 +373,24 @@ static bool point_in_rect(int x, int y, SDL_Rect rect) {
     return x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h;
 }
 
+#define DROPDOWN_ROW_H 34
+
+static SDL_Rect dropdown_button_rect(int panel_x, OpenDropdown dropdown) {
+    if (dropdown == DROPDOWN_DIFFICULTY) {
+        return (SDL_Rect){ panel_x, 222, 162, DROPDOWN_ROW_H };
+    }
+    return (SDL_Rect){ panel_x, 160, 162, DROPDOWN_ROW_H };
+}
+
+static SDL_Rect dropdown_menu_rect(int panel_x, OpenDropdown dropdown, int count) {
+    SDL_Rect button = dropdown_button_rect(panel_x, dropdown);
+    return (SDL_Rect){ button.x, button.y + button.h, button.w, count * DROPDOWN_ROW_H };
+}
+
+static SDL_Rect dropdown_item_rect(SDL_Rect menu, int index) {
+    return (SDL_Rect){ menu.x, menu.y + index * DROPDOWN_ROW_H, menu.w, DROPDOWN_ROW_H };
+}
+
 static int max_move_scroll(const App *app, int rows) {
     int max = app->game.history_len - rows;
     return max > 0 ? max : 0;
@@ -381,13 +426,14 @@ void ui_pointer_click(App *app, int x, int y) {
     }
     if (app->open_dropdown == DROPDOWN_MODE) {
         int i;
-        SDL_Rect box = { panel_x, 160, 162, 34 };
+        SDL_Rect box = dropdown_button_rect(panel_x, DROPDOWN_MODE);
+        SDL_Rect menu = dropdown_menu_rect(panel_x, DROPDOWN_MODE, 4);
         if (point_in_rect(x, y, box)) {
             app->open_dropdown = DROPDOWN_NONE;
             return;
         }
         for (i = 0; i < 4; i++) {
-            SDL_Rect opt = { panel_x, 194 + i * 34, 162, 34 };
+            SDL_Rect opt = dropdown_item_rect(menu, i);
             if (point_in_rect(x, y, opt)) {
                 set_mode(app, (PlayMode)i);
                 app->open_dropdown = DROPDOWN_NONE;
@@ -399,13 +445,14 @@ void ui_pointer_click(App *app, int x, int y) {
     }
     if (app->open_dropdown == DROPDOWN_DIFFICULTY) {
         int i;
-        SDL_Rect box = { panel_x, 222, 162, 34 };
+        SDL_Rect box = dropdown_button_rect(panel_x, DROPDOWN_DIFFICULTY);
+        SDL_Rect menu = dropdown_menu_rect(panel_x, DROPDOWN_DIFFICULTY, 3);
         if (point_in_rect(x, y, box)) {
             app->open_dropdown = DROPDOWN_NONE;
             return;
         }
         for (i = 0; i < 3; i++) {
-            SDL_Rect opt = { panel_x, 256 + i * 34, 162, 34 };
+            SDL_Rect opt = dropdown_item_rect(menu, i);
             if (point_in_rect(x, y, opt)) {
                 set_difficulty(app, (XiangqiAiLevel)i);
                 app->open_dropdown = DROPDOWN_NONE;
@@ -420,9 +467,9 @@ void ui_pointer_click(App *app, int x, int y) {
             reset_game(app);
         } else if (point_in_rect(x, y, (SDL_Rect){ panel_x, 96, 162, 34 })) {
             undo_move(app);
-        } else if (point_in_rect(x, y, (SDL_Rect){ panel_x, 160, 162, 34 })) {
+        } else if (point_in_rect(x, y, dropdown_button_rect(panel_x, DROPDOWN_MODE))) {
             app->open_dropdown = DROPDOWN_MODE;
-        } else if (point_in_rect(x, y, (SDL_Rect){ panel_x, 222, 162, 34 })) {
+        } else if (point_in_rect(x, y, dropdown_button_rect(panel_x, DROPDOWN_DIFFICULTY))) {
             app->open_dropdown = DROPDOWN_DIFFICULTY;
         } else if (point_in_rect(x, y, (SDL_Rect){ panel_x, 352, 78, 34 })) {
             save_game(app);
@@ -525,7 +572,7 @@ static void draw_dropdown_menu(SDL_Renderer *r, SDL_Rect rect, const char **item
     set_color(r, 25, 25, 25, 255);
     draw_bezel(r, rect, false);
     for (i = 0; i < count; i++) {
-        SDL_Rect item = { rect.x, rect.y + i * 25, rect.w, 25 };
+        SDL_Rect item = dropdown_item_rect(rect, i);
         if (i == selected) {
             set_color(r, 25, 25, 25, 255);
             SDL_RenderFillRect(r, &(SDL_Rect){ item.x + 1, item.y + 1, item.w - 2, item.h - 2 });
@@ -533,7 +580,7 @@ static void draw_dropdown_menu(SDL_Renderer *r, SDL_Rect rect, const char **item
         } else {
             set_color(r, 25, 25, 25, 255);
         }
-        draw_text_mid_bold(r, items[i], item.x + 7, item.y + 5);
+        draw_text_mid_bold(r, items[i], item.x + 7, item.y + (item.h - 14) / 2);
     }
     set_color(r, 25, 25, 25, 255);
 }
@@ -809,11 +856,11 @@ void ui_draw_board(App *app) {
             draw_button(r, "UNDO", (SDL_Rect){ panel_x, 96, 162, 34 });
 
             draw_section_label(r, "MODE", panel_x, 136, panel_w);
-            draw_dropdown(r, mode_name(app->mode), (SDL_Rect){ panel_x, 160, 162, 34 },
+            draw_dropdown(r, mode_name(app->mode), dropdown_button_rect(panel_x, DROPDOWN_MODE),
                           app->open_dropdown == DROPDOWN_MODE);
 
             draw_section_label(r, "DIFFICULTY", panel_x, 198, panel_w);
-            draw_dropdown(r, difficulty_name(app->ai_level), (SDL_Rect){ panel_x, 222, 162, 34 },
+            draw_dropdown(r, difficulty_name(app->ai_level), dropdown_button_rect(panel_x, DROPDOWN_DIFFICULTY),
                           app->open_dropdown == DROPDOWN_DIFFICULTY);
 
             draw_section_label(r, "STATUS", panel_x, 260, panel_w);
@@ -879,9 +926,9 @@ void ui_draw_board(App *app) {
             draw_text_mid_bold(r, "SELECT QUIT", panel_x, 376);
         }
         if (app->open_dropdown == DROPDOWN_MODE) {
-            draw_dropdown_menu(r, (SDL_Rect){ panel_x, 194, 162, 136 }, mode_items, 4, (int)app->mode);
+            draw_dropdown_menu(r, dropdown_menu_rect(panel_x, DROPDOWN_MODE, 4), mode_items, 4, (int)app->mode);
         } else if (app->open_dropdown == DROPDOWN_DIFFICULTY) {
-            draw_dropdown_menu(r, (SDL_Rect){ panel_x, 256, 162, 102 }, diff_items, 3, (int)app->ai_level);
+            draw_dropdown_menu(r, dropdown_menu_rect(panel_x, DROPDOWN_DIFFICULTY, 3), diff_items, 3, (int)app->ai_level);
         }
         draw_page_tabs(r, app, panel_x);
     } else {
