@@ -1,4 +1,4 @@
-const CACHE_NAME = "exact-chinesechess-pwa-v8";
+const CACHE_NAME = "exact-chinesechess-pwa-v9";
 const APP_SHELL = [
   "./",
   "index.html",
@@ -36,7 +36,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      Promise.all(keys.filter((key) => key.startsWith("exact-chinesechess-pwa-") && key !== CACHE_NAME).map((key) => caches.delete(key)))
     )
   );
   self.clients.claim();
@@ -44,6 +44,7 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  if (new URL(event.request.url).pathname.startsWith(new URL("coach/", self.registration.scope).pathname)) return;
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return withIsolationHeaders(cached);

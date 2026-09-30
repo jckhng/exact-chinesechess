@@ -64,6 +64,7 @@ select {
 }
 
 .toolbar button,
+.toolbar .toolbar-link,
 .settings select {
   width: 100%;
   min-width: 0;
@@ -75,7 +76,8 @@ select {
   font-weight: 900;
 }
 
-.toolbar button {
+.toolbar button,
+.toolbar .toolbar-link {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -83,8 +85,16 @@ select {
   font-size: clamp(0.72rem, 2.6vw, 1rem);
 }
 
+.toolbar .toolbar-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .toolbar button:active,
 .toolbar button:focus-visible,
+.toolbar .toolbar-link:focus-visible,
 .settings select:focus-visible {
   outline: 4px solid #555;
 }

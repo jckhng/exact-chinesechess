@@ -1,0 +1,96 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #17231e;
+  background: #e9e8de;
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, a { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .45; }
+button:focus-visible, a:focus-visible { outline: 3px solid #e58b39; outline-offset: 3px; }
+.coach-app { max-width: 1450px; margin: auto; padding: 22px clamp(12px, 3vw, 40px) 50px; }
+.coach-header { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+.coach-header h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.8rem); line-height: .99; letter-spacing: -.055em; }
+.coach-header .subtitle { margin: 9px 0 0; color: #526259; font-weight: 600; }
+.eyebrow { margin: 0 0 9px; color: #456555; font-size: .75rem; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
+.coach-header nav { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+.coach-header nav a, .coach-header nav button { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 15px; border: 1px solid #9bac9f; border-radius: 999px; background: #fffefa; color: #263d31; text-decoration: none; font-weight: 750; white-space: nowrap; }
+.coach-header nav button { background: #203c30; color: white; border-color: #203c30; }
+.coach-layout { display: grid; grid-template-columns: minmax(340px, 660px) minmax(330px, 1fr); gap: clamp(16px, 3vw, 40px); align-items: start; }
+.board-column { min-width: 0; }
+.board-topline { display: flex; justify-content: space-between; gap: 10px; padding: 0 4px 10px; color: #364d40; font-size: .82rem; font-weight: 780; }
+.coach-board { position: relative; width: 100%; aspect-ratio: 9 / 10; overflow: hidden; border: 9px solid #fffefa; border-radius: 22px; background: #f8f4e8; box-shadow: 0 20px 48px rgba(24, 46, 33, .18); }
+.coach-board-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; user-select: none; }
+.coach-piece { position: absolute; z-index: 3; width: 10.2%; aspect-ratio: 1; transform: translate(-50%, -50%); object-fit: contain; pointer-events: none; filter: drop-shadow(0 3px 1px rgba(0,0,0,.22)); }
+.coach-cell { position: absolute; z-index: 4; width: 10.5%; aspect-ratio: 1; transform: translate(-50%, -50%); padding: 0; border: 0; border-radius: 50%; background: transparent; }
+.coach-cell:disabled { opacity: 1; }
+.coach-cell:focus-visible { outline: 3px solid #e0782d; outline-offset: -2px; background: rgba(255,255,255,.45); }
+.coach-lines { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; overflow: visible; color: #c25837; }
+.hint-line { stroke: #b94c3b; stroke-width: 7; stroke-linecap: round; opacity: .82; }
+.hint-line.lane { stroke: #186f69; stroke-width: 5; stroke-dasharray: 12 9; }
+.hint-line.move { stroke: #223d88; stroke-width: 8; }
+.hint-line.prediction { stroke: #6453a4; stroke-width: 8; }
+.coach-ring { position: absolute; z-index: 2; width: 10.5%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+.coach-ring.threatened { border: 5px solid #b94c3b; box-shadow: 0 0 0 4px rgba(255,255,255,.85); }
+.coach-ring.threatened.unrecapturable { border-style: double; border-width: 8px; }
+.coach-ring.selected { border: 5px solid #173e93; background: rgba(255,255,255,.35); }
+.coach-ring.target { border: 4px dashed #173e93; background: rgba(255,255,255,.54); }
+.board-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 13px 4px; }
+.board-tools button { min-width: 105px; min-height: 39px; border: 1px solid #506c5a; border-radius: 8px; color: #244435; background: #fffefa; font-weight: 780; }
+.board-tools button.active { background: #274a37; color: white; }
+.board-tools p { flex-basis: 100%; margin: 2px 0 0; color: #59695f; font-size: .82rem; }
+.lesson-column { display: grid; gap: 13px; min-width: 0; }
+.exercise-picker { padding: 15px 17px; border-radius: 14px; background: #dfe9db; }
+.exercise-picker div { display: flex; flex-wrap: wrap; gap: 6px; }
+.exercise-picker button { min-height: 34px; padding: 0 10px; border: 1px solid #adc2ad; border-radius: 999px; background: #fffefa; color: #315240; font-size: .79rem; font-weight: 750; }
+.exercise-picker button.active { color: white; background: #294d39; border-color: #294d39; }
+.exercise-picker p:last-child { margin: 9px 0 0; color: #435f4c; font-size: .81rem; line-height: 1.4; }
+.focus-tabs, .branch-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.focus-tabs button, .branch-tabs button { min-height: 42px; padding: 0 12px; border: 1px solid #b3c1b3; border-radius: 9px; background: #fffefa; color: #355344; font-size: .86rem; font-weight: 760; }
+.focus-tabs button.active, .branch-tabs button.active { color: white; background: #284838; border-color: #284838; }
+.lesson-card { padding: clamp(17px, 2vw, 27px); border: 1px solid #ccd3c6; border-radius: 18px; background: #fffefa; box-shadow: 0 3px 13px rgba(40, 60, 44, .05); }
+.lesson-card.primary { border-color: #b9c9b5; background: linear-gradient(140deg, #fffefa 68%, #e4ede0); }
+.lesson-card h2 { margin: 0 0 12px; font-size: clamp(1.3rem, 2vw, 1.75rem); line-height: 1.2; letter-spacing: -.025em; }
+.lesson-card p { margin: 0 0 12px; line-height: 1.52; color: #344a3d; }
+.action-row { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin-top: 17px; }
+.action-row span { flex: 1; min-width: 170px; color: #59665d; font-size: .86rem; }
+.lesson-card button.main-action, .action-row button { min-height: 42px; padding: 0 16px; border: 1px solid #315540; border-radius: 9px; background: #2b503c; color: white; font-weight: 800; }
+.action-row button:not(.main-action) { background: #fffefa; color: #315540; }
+.lesson-card .prediction-note { border-left: 4px solid #7563a2; padding: 9px 12px; background: #f1edf9; color: #392d61; font-weight: 720; }
+.scan-card .action-row { margin-top: 8px; }
+.scan-card .scan-feedback { margin: 13px 0 0; padding: 10px; border-radius: 7px; background: #edf4e8; font-weight: 730; }
+.insight-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.insight-list li { line-height: 1.45; padding-bottom: 12px; border-bottom: 1px solid #e3e8e0; }
+.insight-list li:last-child { border-bottom: 0; padding-bottom: 0; }
+.concept-tag { display: inline-block; margin-right: 9px; padding: 2px 6px; border-radius: 4px; background: #e4ede1; color: #305442; font-size: .72rem; font-weight: 850; text-transform: uppercase; }
+.branch-tabs { margin: 14px 0; }
+.step-controls { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; gap: 8px; align-items: center; padding: 9px; border-radius: 10px; background: #eef3ea; }
+.step-controls button { width: 42px; height: 42px; border: 0; border-radius: 7px; color: #fff; background: #31543e; font-size: 1.3rem; font-weight: 800; }
+.step-controls span { text-align: center; font-size: .88rem; font-weight: 750; }
+.variation-list { max-height: 220px; overflow: auto; margin: 13px 0 0; padding-left: 24px; }
+.variation-list li { padding: 2px 0; }
+.variation-list button { width: 100%; text-align: left; min-height: 31px; border: 0; border-radius: 6px; background: transparent; color: #31513d; font-weight: 650; }
+.variation-list button.active { background: #dfeadd; font-weight: 850; }
+.progress-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin: 14px 0; }
+.progress-grid div { display: grid; gap: 3px; text-align: center; padding: 10px 2px; border-radius: 8px; background: #eef3e9; }
+.progress-grid strong { font-size: 1.3rem; color: #284a36; }
+.progress-grid span { font-size: .69rem; color: #4d6453; text-transform: capitalize; }
+.lesson-card.progress-card p:last-child { margin-bottom: 0; font-size: .83rem; }
+.engine-note { color: #58695f; font-size: .78rem; line-height: 1.45; padding: 0 6px; }
+@media (max-width: 950px) {
+  .coach-layout { grid-template-columns: 1fr; }
+  .board-column { width: min(100%, 640px); margin: 0 auto; }
+  .lesson-column { width: min(100%, 720px); margin: 0 auto; }
+}
+@media (max-width: 600px) {
+  .coach-app { padding: 14px 9px 35px; }
+  .coach-header { display: block; margin: 0 4px 16px; }
+  .coach-header nav { margin-top: 15px; }
+  .coach-board { border-width: 5px; border-radius: 12px; }
+  .board-topline { font-size: .72rem; }
+  .lesson-card { border-radius: 13px; }
+  .focus-tabs { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .focus-tabs button { padding: 0 4px; font-size: .75rem; }
+}

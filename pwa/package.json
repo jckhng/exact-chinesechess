@@ -9,7 +9,8 @@
     "build": "tsc -b && vite build",
     "build:web": "npm run build",
     "preview": "vite preview",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test:coach": "node tests/run-coach-tests.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

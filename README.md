@@ -93,6 +93,10 @@ engine play it bundles Fairy-Stockfish WASM, a GPL-3.0 Xiangqi-capable engine
 build, when served with the cross-origin isolation headers required by threaded
 WebAssembly.
 
+A separate [coaching companion](docs/COACHING_APP_PLAN.md) launches from the PWA.
+It uses visual threat and lane guides, engine move comparisons, and stepped
+continuations to teach planning.
+
 ```bash
 cd pwa
 npm install

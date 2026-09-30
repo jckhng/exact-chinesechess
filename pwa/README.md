@@ -3,6 +3,10 @@
 This folder contains a browser/PWA version of Exact Chinese Chess. It is
 intentionally isolated from the native e-ink/KUAL build in the parent project.
 
+The separate coaching companion is described in
+[`docs/COACHING_APP_PLAN.md`](../docs/COACHING_APP_PLAN.md). It is built alongside
+the play app at `coach/` and opens from the **Coaching** control.
+
 ## What It Does
 
 - Runs in Chrome and other modern browsers.
@@ -42,6 +46,22 @@ The production output is generated in:
 ```text
 pwa/dist
 ```
+
+## Coaching Companion
+
+The coaching app opens at `/coach/` under the configured PWA base path. It has
+its own interface, browser storage, service worker, and full-strength analysis
+worker. Learners can select guided starting positions, play Red, scan for Black
+capture routes, reveal hints in steps, predict Black's reply, and compare the
+played line with the engine line.
+Board guides show capture routes, legal rook/cannon lanes, and the move at each
+step. The report describes verified threats, activity changes, and concrete
+consequences. Engine verdicts are withheld if the browser cannot run
+Fairy-Stockfish; rule-based guides and fallback practice remain usable.
+
+`npm run test:coach` checks Xiangqi-specific threat geometry, variation replay,
+move comparison, and UCI analysis parsing. Both browser entries are included in
+`npm run build`.
 
 ## Engine
 

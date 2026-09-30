@@ -1,0 +1,14 @@
+{
+  "name": "Xiangqi Coaching Companion",
+  "short_name": "Xiangqi Coach",
+  "description": "Visual Xiangqi training for thinking ahead and developing the board.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#f1eee7",
+  "background_color": "#e9e8de",
+  "icons": [
+    { "src": "../icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
