@@ -8,9 +8,12 @@ import { legalThreats, makeReport, moveLabel, openLanes, pieceAsset, pieceNames,
 
 const SAVE_KEY = "exact-chinesechess-coach-game-v1";
 const PROGRESS_KEY = "exact-chinesechess-coach-progress-v1";
+const VIEW_KEY = "exact-chinesechess-coach-view-v1";
 const BASE = import.meta.env.BASE_URL;
 type Phase = "turn" | "analyzing" | "predict" | "review" | "gameover";
 type Focus = "awareness" | "calculation" | "development";
+type Experience = "simple" | "advanced";
+type GuidedStep = "notice" | "move";
 type Progress = Record<Concept, number>;
 const emptyProgress: Progress = { threat: 0, lane: 0, development: 0, calculation: 0 };
 
@@ -44,6 +47,11 @@ function loadProgress(): Progress {
   } catch { return emptyProgress; }
 }
 
+function loadExperience(): Experience {
+  try { return localStorage.getItem(VIEW_KEY) === "advanced" ? "advanced" : "simple"; }
+  catch { return "simple"; }
+}
+
 function point(row: number, col: number) { return { x: 30 + col * 60, y: 30 + row * 60 }; }
 function pct(row: number, col: number) { return { left: `${point(row, col).x / 540 * 100}%`, top: `${point(row, col).y / 600 * 100}%` }; }
 function sideName(side: Side) { return side === "red" ? "Red" : "Black"; }
@@ -53,6 +61,8 @@ export default function CoachApp() {
   const [progress, setProgress] = useState<Progress>(loadProgress);
   const [phase, setPhase] = useState<Phase>(game.gameOver ? "gameover" : "turn");
   const [focus, setFocus] = useState<Focus>("awareness");
+  const [experience, setExperience] = useState<Experience>(loadExperience);
+  const [guidedStep, setGuidedStep] = useState<GuidedStep>("notice");
   const [exerciseId, setExerciseId] = useState<string | null>(null);
   const [selected, setSelected] = useState(-1);
   const [report, setReport] = useState<CoachReport | null>(null);
@@ -69,6 +79,7 @@ export default function CoachApp() {
   const [engineStatus, setEngineStatus] = useState<EngineStatus>("loading");
   const [engineReason, setEngineReason] = useState("");
   const engineRef = useRef<CoachEngine | null>(null);
+  const simpleCardRef = useRef<HTMLElement | null>(null);
   const generation = useRef(0);
 
   useEffect(() => {
@@ -83,6 +94,12 @@ export default function CoachApp() {
       localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 1, history: game.history.map(moveToUci) }));
   }, [game]);
   useEffect(() => { localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)); }, [progress]);
+  useEffect(() => { localStorage.setItem(VIEW_KEY, experience); }, [experience]);
+  useEffect(() => {
+    if (experience !== "simple" || phase === "analyzing" || (phase === "turn" && guidedStep === "notice" && game.history.length === 0) || !window.matchMedia("(max-width: 950px)").matches) return;
+    const frame = window.requestAnimationFrame(() => simpleCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [experience, phase, guidedStep, branch, step]);
 
   const lineSteps = report ? branch === "played" ? report.playedSteps : report.preferredSteps : [];
   const displayGame = phase === "review" && lineSteps[step] ? lineSteps[step].game : game;
@@ -141,6 +158,8 @@ export default function CoachApp() {
     setPrediction(null);
     setHintLine(null);
     setHintLevel(0);
+    setShowThreats(false);
+    setShowLanes(false);
     setScanMode(false);
     setScanFeedback("");
     setAcknowledged(false);
@@ -162,6 +181,7 @@ export default function CoachApp() {
     const threats = legalThreats(game, "black").filter((threat) => game.pieces[threat.target].side === "red");
     const correct = id === null ? threats.length === 0 : threats.some((threat) => threat.target === id);
     setScanMode(false);
+    if (experience === "simple") setGuidedStep("move");
     setScanFeedback(correct ? "Correct. You checked the black capture routes before committing to a move." : threats.length ? `Look again: Black has a capture route to your ${pieceNames[game.pieces[threats[0].target].type]} on ${square(game.pieces[threats[0].target].row, game.pieces[threats[0].target].col)}.` : "No red piece has a legal black capture route from this position.");
     if (correct) setProgress((old) => ({ ...old, threat: old.threat + 1 }));
     else setShowThreats(true);
@@ -170,7 +190,10 @@ export default function CoachApp() {
   function tap(row: number, col: number) {
     if (!selectableSide) return;
     const id = pieceAt(game, row, col);
-    if (scanMode && phase === "turn") { answerScan(id >= 0 && game.pieces[id].side === "red" ? id : null); return; }
+    if (phase === "turn" && (scanMode || (experience === "simple" && guidedStep === "notice"))) {
+      if (id >= 0 && game.pieces[id].side === "red") answerScan(id);
+      return;
+    }
     if (selected >= 0 && legalTargets.has(`${row},${col}`)) {
       if (phase === "turn") { void makeHumanMove(game, selected, row, col); return; }
       const before = { ...game, turn: "black" as const };
@@ -204,6 +227,7 @@ export default function CoachApp() {
     setPrediction(null);
     setSelected(-1);
     setHintLevel(0);
+    setGuidedStep("notice");
     setScanMode(false);
     setScanFeedback("");
     setShowThreats(false);
@@ -217,6 +241,7 @@ export default function CoachApp() {
     setGame(exerciseGame(exercise));
     setExerciseId(exercise.id);
     setFocus(exercise.focus);
+    setGuidedStep("notice");
     setPhase("turn");
     setReport(null);
     setPrediction(null);
@@ -232,7 +257,7 @@ export default function CoachApp() {
   function transferExercise() {
     const matches = exercises.filter((exercise) => exercise.focus === focus);
     const current = matches.findIndex((exercise) => exercise.id === exerciseId);
-    startExercise(matches[(current + 1) % matches.length] || exercises[0]);
+    startExercise(matches[current < 0 ? Math.min(1, matches.length - 1) : (current + 1) % matches.length] || exercises[0]);
   }
 
   function newSession() {
@@ -240,6 +265,12 @@ export default function CoachApp() {
     generation.current++;
     engineRef.current?.cancel();
     setGame(createGame());
+    setFocus("awareness");
+    setGuidedStep("notice");
+    setHintLine(null);
+    setHintLevel(0);
+    setShowThreats(false);
+    setShowLanes(false);
     setPhase("turn");
     setReport(null);
     setPrediction(null);
@@ -263,18 +294,41 @@ export default function CoachApp() {
     });
   }
 
+  function advanceGuidedReview() {
+    if (!report) return;
+    if (step < Math.min(3, lineSteps.length - 1)) { setStep(step + 1); return; }
+    if (branch === "played" && report.preferredSteps.length > 1 && report.preferred?.bestMove !== moveToUci(report.played)) {
+      setBranch("preferred");
+      setStep(1);
+      return;
+    }
+    continuePractice();
+  }
+
+  const guidedReviewText = !report ? "" : branch === "preferred"
+    ? step === 1 ? "Compare this first move with yours. Which piece or lane is better placed?" : "Follow the reply and notice how the position develops."
+    : step === 2 ? report.insights.find((insight) => insight.text.startsWith("In the engine line"))?.text || "This is Black's strongest reply found by the engine."
+      : step >= 3 ? report.insights.find((insight) => insight.text.startsWith("Your best continuation"))?.text || "This is your best continuation found by the engine. Compare the resulting position with the other line."
+        : report.insights[0]?.text || report.assessment;
+
   const focusPrompt = focus === "awareness" ? "Before moving, which piece or line is under pressure?"
     : focus === "calculation" ? "If you move here, what is Black's strongest reply?"
       : "Which move improves your pieces' useful squares and access?";
   const reply = report?.playedSteps[2]?.move || null;
   const predictionResult = prediction && reply ? moveToUci(prediction) === moveToUci(reply) : null;
+  const guidedReviewDone = Boolean(report && step >= Math.min(3, lineSteps.length - 1) &&
+    (branch === "preferred" || report.preferredSteps.length <= 1 || report.preferred?.bestMove === moveToUci(report.played)));
 
   return (
-    <main className="coach-app">
+    <main className={`coach-app ${experience}`}>
       <header className="coach-header">
         <div><p className="eyebrow">Exact Chinese Chess</p><h1>Coaching companion</h1><p className="subtitle">See the board. Think ahead. Shape the position.</p></div>
         <nav aria-label="App navigation"><a href={BASE}>Return to play</a><button onClick={newSession}>New session</button></nav>
       </header>
+      <div className="experience-tabs" role="group" aria-label="Coaching view">
+        <button className={experience === "simple" ? "active" : ""} onClick={() => { setExperience("simple"); setSelected(-1); setScanMode(false); }} aria-pressed={experience === "simple"}>Simple <span>One step at a time</span></button>
+        <button className={experience === "advanced" ? "active" : ""} onClick={() => { setExperience("advanced"); setSelected(-1); setScanMode(false); }} aria-pressed={experience === "advanced"}>Advanced <span>All tools and scenarios</span></button>
+      </div>
       <div className="coach-layout">
         <section className="board-column" aria-label="Training board">
           <div className="board-topline"><span>{phase === "review" ? `${branch === "played" ? "Your move" : "Engine line"} · step ${step}/${lineSteps.length - 1}` : `${sideName(displayGame.turn)} to move`}</span><span>{game.history.length} moves in session</span></div>
@@ -303,7 +357,32 @@ export default function CoachApp() {
           </div>
         </section>
         <section className="lesson-column" aria-label="Coaching lesson">
-          <section className="exercise-picker" aria-label="Guided starting positions"><p className="eyebrow">Guided positions</p><div>{exercises.map((exercise) => <button key={exercise.id} className={exerciseId === exercise.id ? "active" : ""} onClick={() => startExercise(exercise)} aria-pressed={exerciseId === exercise.id}>{exercise.title}</button>)}</div><p>{exerciseId ? exercises.find((exercise) => exercise.id === exerciseId)?.prompt : "Choose a position or continue your current game."}</p></section>
+          <section className="lesson-card simple-card" ref={simpleCardRef} aria-live="polite">
+            <p className="eyebrow">{phase === "turn" ? guidedStep === "notice" ? "Step 1 · Notice" : "Step 2 · Choose" : phase === "analyzing" ? "Checking your move" : phase === "predict" ? "Step 3 · Think ahead" : phase === "review" ? "Step 4 · Learn" : "Session complete"}</p>
+            {phase === "turn" && guidedStep === "notice" && <>
+              <h2>What can Black capture?</h2>
+              <p>Look at the board. Tap a Red piece Black can capture, or choose “No capture route.”</p>
+              <div className="action-row"><button className="main-action" onClick={() => answerScan(null)}>No capture route</button><button onClick={() => setShowThreats(true)}>Show routes</button><button className="skip-action" onClick={() => { setGuidedStep("move"); setShowThreats(false); }}>Skip question</button></div>
+            </>}
+            {phase === "turn" && guidedStep === "move" && <>
+              <h2>Choose your move</h2><p>{focusPrompt} Tap a Red piece, then its destination.</p>
+              {scanFeedback && <p className="scan-feedback">{scanFeedback}</p>}
+              <div className="action-row"><button onClick={() => void requestHint()}>Hint {hintLevel ? `${hintLevel}/3` : ""}</button><button className="skip-action" onClick={transferExercise}>Skip scenario</button></div>
+              {hintLevel > 0 && <p className="hint-feedback">{hintLevel === 1 ? "Threat routes are marked on the board." : hintLevel === 2 ? "Rook and cannon routes are marked too." : hintLine ? "The engine's candidate move is marked." : "An engine candidate is unavailable."}</p>}
+            </>}
+            {phase === "analyzing" && <><h2>Checking your move…</h2><p>The coach is checking your move and possible alternatives.</p></>}
+            {phase === "predict" && <><h2>What might Black play?</h2><p>Tap a Black piece, then its destination. You can also reveal the reply now.</p>{prediction && <p className="prediction-note">Your prediction: {moveLabel({ ...game, turn: "black" }, prediction)}</p>}<button className="main-action" onClick={revealReply}>{prediction ? "Check prediction" : "Skip prediction · show reply"}</button></>}
+            {phase === "review" && report && <>
+              <h2>{branch === "preferred" ? "Engine recommendation" : step === 2 ? "Black's reply" : step >= 3 ? "Your best reply" : report.verdict}</h2>
+              <p className="verdict-label">{report.verdict}</p><p>{lineSteps[step]?.label || report.assessment}</p>
+              {branch === "played" && step <= 2 && <p>{report.assessment}</p>}
+              <p className="guided-insight">{guidedReviewText}</p>
+              {prediction && branch === "played" && step === 2 && <p className="prediction-note">{predictionResult ? "You found the engine's reply." : `Your prediction was ${moveLabel(game, prediction)}. The engine chose ${reply ? moveLabel(game, reply) : "another reply"}.`}</p>}
+              <div className="action-row"><button className="main-action" onClick={advanceGuidedReview}>{guidedReviewDone ? "Continue game" : "Next step"}</button>{!guidedReviewDone && <button className="skip-action" onClick={continuePractice}>Skip explanation</button>}</div>
+            </>}
+            {phase === "gameover" && <><h2>{sideName(game.winner)} wins</h2><button className="main-action" onClick={newSession}>Start again</button></>}
+          </section>
+          <section className="exercise-picker" aria-label="Practice scenarios"><p className="eyebrow">Practice scenarios</p><p>Each scenario starts from a prepared board position and asks you to practice one idea.</p><div>{exercises.map((exercise) => <button key={exercise.id} className={exerciseId === exercise.id ? "active" : ""} onClick={() => startExercise(exercise)} aria-pressed={exerciseId === exercise.id}>{exercise.title}</button>)}</div><p>{exerciseId ? exercises.find((exercise) => exercise.id === exerciseId)?.prompt : "Choose a scenario or continue your current game."}</p></section>
           <div className="focus-tabs" role="group" aria-label="Training focus">
             {(["awareness", "calculation", "development"] as Focus[]).map((name) => <button key={name} className={focus === name ? "active" : ""} onClick={() => setFocus(name)} aria-pressed={focus === name}>{name === "awareness" ? "See threats" : name === "calculation" ? "Think ahead" : "Develop"}</button>)}
           </div>

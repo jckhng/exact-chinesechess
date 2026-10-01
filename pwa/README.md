@@ -51,9 +51,10 @@ pwa/dist
 
 The coaching app opens at `/coach/` under the configured PWA base path. It has
 its own interface, browser storage, service worker, and full-strength analysis
-worker. Learners can select guided starting positions, play Red, scan for Black
-capture routes, reveal hints in steps, predict Black's reply, and compare the
-played line with the engine line.
+worker. The default Simple view guides learners through a threat scan, a move, a
+reply prediction, and a short explanation, with skips at each teaching step.
+Advanced shows board tools, full variations, progress, and prepared practice
+scenarios. Learners can switch views without losing the current game.
 Board guides show capture routes, legal rook/cannon lanes, and the move at each
 step. The report describes verified threats, activity changes, and concrete
 consequences. Engine verdicts are withheld if the browser cannot run

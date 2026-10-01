@@ -1,7 +1,7 @@
 # Xiangqi Coaching Companion Plan
 
 Status: initial browser implementation available; curriculum and cross-platform work remain open.
-Updated: 2026-09-30.
+Updated: 2026-10-01.
 
 ## North star
 
@@ -27,6 +27,14 @@ The companion is a separate browser app with its own teaching interface. The exi
 6. End with one reusable lesson and a short transfer position that tests the same idea in a different setting.
 
 The learner can request an answer immediately, but the default flow preserves a chance to think first. Feedback explains a causal chain, not just a move grade or score.
+
+## Simple and Advanced experience
+
+**Simple** is the default and presents one teaching card at a time beside the board. The card leads the learner through four steps: notice a capture route, choose a Red move, predict Black's reply, and inspect the consequence. The board displays the hint relevant to the current step. The learner can skip the opening question, skip a scenario, reveal the reply without predicting, or leave the explanation and continue the game. A returning learner's choice of Simple or Advanced is remembered locally.
+
+**Advanced** exposes the board toggles, training focus, scenario picker, full variation list, and progress. Switching views preserves the current game and analysis. A **practice scenario** is a prepared, legal board position with one prompt, such as spotting a threat or developing a piece; it is not a separate rules mode. Scenarios live in Advanced so they do not compete with the Simple step-by-step flow.
+
+On a narrow screen, the current teaching card appears before the board. After a move or step change, the card comes into view so the next instruction is visible. The first complete coaching release should keep the Simple path usable without opening Advanced.
 
 ## Required coaching capabilities
 
@@ -113,12 +121,13 @@ The first complete coaching release includes Stages 1–4. Each stage can be bui
 - Coaching stays responsive on a representative mobile browser; analysis has a bounded budget and can be interrupted.
 - A beginner can use hints to find a plan, predict a reply, and explain the outcome without relying on a raw evaluation number.
 
-## Implementation checkpoint (2026-09-30)
+## Implementation checkpoint (2026-10-01)
 
 The browser coaching app, PWA launch link, shared rules module, full-strength
 analysis worker, grounded tactical and activity hints, active threat scan,
-reply prediction, variation playback, local progress, and scoped offline shell
-are implemented. The staged plan above remains the reference for further
+reply prediction, variation playback, local progress, a Simple guided view with
+skippable steps, an Advanced view for tools and scenarios, and a scoped offline
+shell are implemented. The staged plan above remains the reference for further
 teaching depth. Broader motif-specific exercises, deeper positional explanations,
 play-app game handoff, and native platform adaptations remain to be developed.
 

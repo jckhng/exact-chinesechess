@@ -94,3 +94,25 @@ button:focus-visible, a:focus-visible { outline: 3px solid #e58b39; outline-offs
   .focus-tabs { display: grid; grid-template-columns: repeat(3, 1fr); }
   .focus-tabs button { padding: 0 4px; font-size: .75rem; }
 }
+
+/* Guided view keeps one teaching card and the board in view. */
+.experience-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+.experience-tabs button { flex: 0 1 220px; min-height: 54px; padding: 8px 13px; border: 1px solid #a9bcae; border-radius: 12px; background: #fffefa; color: #294735; text-align: left; font-weight: 850; }
+.experience-tabs button span { display: block; margin-top: 3px; font-size: .76rem; font-weight: 600; color: #607267; }
+.experience-tabs button.active { border-color: #284838; background: #284838; color: white; }
+.experience-tabs button.active span { color: #d8e9db; }
+.coach-app.simple .board-tools, .coach-app.simple .lesson-column > :not(.simple-card), .coach-app.advanced .simple-card { display: none; }
+.simple-card { border-color: #9fb99e; }
+.simple-card .guided-insight { padding: 11px 13px; border-left: 4px solid #315d42; border-radius: 4px; background: #eaf2e8; font-weight: 700; }
+.simple-card .scan-feedback, .simple-card .hint-feedback { color: #315443; font-weight: 700; }
+.simple-card .action-row button:not(.main-action) { background: #fffefa; color: #315540; }
+@media (max-width: 950px) {
+  .coach-app.simple .lesson-column { order: -1; }
+}
+@media (max-width: 600px) {
+  .experience-tabs button { flex: 1; min-width: 0; }
+  .experience-tabs button span { font-size: .7rem; }
+}
+.simple-card .verdict-label { display: inline-block; margin: 0 0 10px; padding: 3px 8px; border-radius: 5px; background: #e4ede1; color: #315443; font-size: .75rem; font-weight: 850; }
+.simple-card { scroll-margin-top: 12px; }
+.simple-card .action-row button.skip-action { border-color: transparent; background: transparent; color: #53685b; text-decoration: underline; padding-inline: 5px; }
