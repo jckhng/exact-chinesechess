@@ -16,7 +16,9 @@ the play app at `coach/` and opens from the **Coaching** control.
 - Supports manual Save and Load restore points.
 - Supports Play Red, Play Black, 2 Player, and AI Demo modes.
 - Offers independent **Threats** and **Lanes** board guides, off by default and
-  remembered between visits. Threats mark legal captures for both sides; lanes
+  remembered between visits. Threats mark threatened pieces on both sides;
+  selecting a piece reveals its capture routes. Thin, offset guides keep the
+  board grid visible and combine duplicate routes. Lanes
   show the side to move's longest rook/cannon routes and focus on a selected
   rook or cannon. Both guides follow board flipping and move review, and work
   offline without the analysis engine.

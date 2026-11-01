@@ -70,3 +70,29 @@ export function openLanes(game: Game, side: Side, selectedId = -1): BoardHint[] 
 export function boardPoint(row: number, col: number, flipped = false): { x: number; y: number } {
   return { x: 30 + (flipped ? 8 - col : col) * 60, y: 30 + (flipped ? 9 - row : row) * 60 };
 }
+
+export function guideSegment(hint: BoardHint, flipped = false) {
+  const from = boardPoint(hint.from.row, hint.from.col, flipped);
+  const to = boardPoint(hint.to.row, hint.to.col, flipped);
+  const distance = Math.hypot(to.x - from.x, to.y - from.y);
+  const dx = (to.x - from.x) / distance, dy = (to.y - from.y) / distance;
+  // Leave the printed grid visible and stop arrows at the pieces' edges.
+  return {
+    from: { x: from.x + dx * 25 - dy * 7, y: from.y + dy * 25 + dx * 7 },
+    to: { x: to.x - dx * 25 - dy * 7, y: to.y - dy * 25 + dx * 7 }
+  };
+}
+
+export function guideRoutes(hints: BoardHint[]): Array<{ hint: BoardHint; bothWays: boolean }> {
+  const routes = new Map<string, { hint: BoardHint; bothWays: boolean }>();
+  for (const hint of hints) {
+    const from = `${hint.from.row},${hint.from.col}`, to = `${hint.to.row},${hint.to.col}`;
+    if (from === to) continue;
+    const key = [from, to].sort().join(":");
+    const existing = routes.get(key);
+    if (!existing) routes.set(key, { hint, bothWays: false });
+    else if (hint.kind === "threat" && existing.hint.kind === "threat" &&
+      hint.from.row === existing.hint.to.row && hint.from.col === existing.hint.to.col) existing.bothWays = true;
+  }
+  return [...routes.values()];
+}

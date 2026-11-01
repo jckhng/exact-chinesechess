@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createGame, cloneGame, applyMove, generateMoves, isLegalMove } from "../src/xiangqi";
 import { moveToUci } from "../src/fairyStockfishEngine";
 import { makeReport, replayLine } from "../src/coach/logic";
-import { boardPoint, legalThreats, openLanes } from "../src/boardGuides";
+import { boardPoint, guideRoutes, guideSegment, legalThreats, openLanes, type BoardHint } from "../src/boardGuides";
 import { exercises, exerciseGame } from "../src/coach/exercises";
 
 function sparse() {
@@ -74,6 +74,24 @@ for (let row = 0; row < 10; row++) for (let col = 0; col < 9; col++) {
   assert.equal(normal.x + flipped.x, 540, "guide columns rotate with the pieces");
   assert.equal(normal.y + flipped.y, 600, "guide rows rotate with the pieces");
 }
+
+const verticalGuide: BoardHint = { kind: "threat", text: "Capture route", from: { row: 7, col: 1 }, to: { row: 0, col: 1 } };
+const horizontalGuide: BoardHint = { ...verticalGuide, to: { row: 7, col: 7 } };
+const verticalSegment = guideSegment(verticalGuide);
+const horizontalSegment = guideSegment(horizontalGuide);
+assert.notEqual(verticalSegment.from.x, boardPoint(7, 1).x, "vertical guide leaves the board file visible");
+assert.notEqual(horizontalSegment.from.y, boardPoint(7, 1).y, "horizontal guide leaves the board rank visible");
+assert.ok(verticalSegment.to.y > boardPoint(0, 1).y, "capture arrow stops at the target piece's edge");
+const flippedSegment = guideSegment(verticalGuide, true);
+assert.equal(verticalSegment.from.x + flippedSegment.from.x, 540, "offset guides follow board rotation");
+assert.equal(verticalSegment.from.y + flippedSegment.from.y, 600, "offset guide ends follow board rotation");
+const combinedRoutes = guideRoutes([
+  verticalGuide,
+  { ...verticalGuide, from: verticalGuide.to, to: verticalGuide.from },
+  { ...verticalGuide, kind: "lane" }
+]);
+assert.equal(combinedRoutes.length, 1, "capture and lane overlays never redraw the same route");
+assert.equal(combinedRoutes[0].bothWays, true, "mutual captures share one line with two arrowheads");
 
 const reply = generateMoves(afterFirst.game, "black")[0];
 assert.ok(reply);

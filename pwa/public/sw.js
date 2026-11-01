@@ -1,4 +1,4 @@
-const CACHE_NAME = "exact-chinesechess-pwa-v10";
+const CACHE_NAME = "exact-chinesechess-pwa-v11";
 const APP_SHELL = [
   "./",
   "index.html",

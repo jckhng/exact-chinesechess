@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FairyStockfishEngine, parseUciMove } from "./fairyStockfishEngine";
-import { boardPoint, legalThreats, openLanes, square, type BoardHint } from "./boardGuides";
+import { boardPoint, guideRoutes, guideSegment, legalThreats, openLanes, square, type BoardHint } from "./boardGuides";
 import { ROWS, COLS, createGame, cloneGame, pieceAt, inBounds, isLegalMove, applyMove, undoOne, chooseAiMove, inCheck } from "./xiangqi";
 import type { Difficulty, Game, Mode, Move, Piece, PieceType, Side } from "./types";
 
@@ -178,6 +178,12 @@ function App() {
     }
     return [...targets.values()];
   }, [threatGuides]);
+  const visibleRoutes = useMemo(() => {
+    const selected = !isReviewing && selectedId >= 0 ? displayGame.pieces[selectedId] : null;
+    const captures = selected ? threatGuides.filter((hint) => hint.targetId === selected.id ||
+      (hint.from.row === selected.row && hint.from.col === selected.col)) : [];
+    return guideRoutes([...captures, ...laneGuides]);
+  }, [displayGame, selectedId, isReviewing, threatGuides, laneGuides]);
 
   function goReview(idx: number | null) {
     setReviewIdx(idx);
@@ -352,7 +358,7 @@ function App() {
             <button aria-pressed={showLanes} onClick={() => setShowLanes((value) => !value)}>Lanes {showLanes ? "on" : "off"}</button>
           </div>
           {(showThreats || showLanes) && <p>
-            {showThreats && "Solid arrows show legal captures for either side. Double rings mean no immediate legal recapture. "}
+            {showThreats && "Rings mark threatened pieces. Select a piece to see its capture routes. Double rings mean no immediate legal recapture. "}
             {showLanes && `Dashed lines show ${displayGame.turn === "red" ? "Red" : "Black"}'s longest rook and cannon routes. Select a rook or cannon to focus.`}
           </p>}
           {(showThreats || showLanes) && <ul className="visually-hidden">{[...threatGuides, ...laneGuides].map((hint, index) => <li key={index}>{hint.text}</li>)}</ul>}
@@ -364,10 +370,10 @@ function App() {
               <span key={marker.key} className={marker.className} style={{ left: marker.left, top: marker.top }} aria-hidden="true" />
             ))}
             {(showThreats || showLanes) && <svg className="board-guides" viewBox="0 0 540 600" preserveAspectRatio="none" aria-hidden="true">
-              <defs><marker id="play-guide-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#222" /></marker></defs>
-              {[...laneGuides, ...threatGuides].map((hint, index) => {
-                const from = boardPoint(hint.from.row, hint.from.col, flipped), to = boardPoint(hint.to.row, hint.to.col, flipped);
-                return <line key={`${hint.kind}-${index}`} className={`guide-line ${hint.kind}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} markerEnd="url(#play-guide-arrow)" />;
+              <defs><marker id="play-guide-arrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto-start-reverse"><path d="M0 0 L5 2.5 L0 5 Z" fill="#666" /></marker></defs>
+              {visibleRoutes.map(({ hint, bothWays }, index) => {
+                const { from, to } = guideSegment(hint, flipped);
+                return <line key={`${hint.kind}-${index}`} className={`guide-line ${hint.kind}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} markerStart={bothWays ? "url(#play-guide-arrow)" : undefined} markerEnd="url(#play-guide-arrow)" />;
               })}
             </svg>}
             {threatenedPieces.map((hint) => <span key={hint.targetId} className={`board-marker threatened${hint.danger ? " no-recapture" : ""}`} style={boardPosition(hint.to.row, hint.to.col, flipped)} aria-hidden="true" />)}
