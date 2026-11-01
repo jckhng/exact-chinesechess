@@ -1,18 +1,13 @@
 import { moveToUci, parseUciMove } from "../fairyStockfishEngine";
 import type { Game, Move, Piece, PieceType, Side } from "../types";
-import { applyMove, cloneGame, generateMoves, inCheck, otherSide, pieceAt } from "../xiangqi";
+import { applyMove, cloneGame, generateMoves, inCheck, pieceAt } from "../xiangqi";
+import { legalThreats, pieceNames, square, type BoardHint, type Threat } from "../boardGuides";
 import type { EngineLine, EngineScore } from "./engine";
 
+export { legalThreats, openLanes, pieceNames, square } from "../boardGuides";
+export type { BoardHint, Threat } from "../boardGuides";
+
 export type Concept = "threat" | "lane" | "development" | "calculation";
-export type Threat = { attacker: number; target: number; defended: boolean };
-export type BoardHint = {
-  kind: "threat" | "lane" | "move" | "activity";
-  text: string;
-  from: { row: number; col: number };
-  to: { row: number; col: number };
-  targetId?: number;
-  danger?: boolean;
-};
 export type Insight = { concept: Concept; text: string; hint?: BoardHint };
 export type LineStep = { game: Game; move: Move | null; label: string };
 export type CoachReport = {
@@ -29,10 +24,6 @@ export type CoachReport = {
   preferredSteps: LineStep[];
 };
 
-export const pieceNames: Record<PieceType, string> = {
-  general: "general", advisor: "advisor", elephant: "elephant", horse: "horse",
-  rook: "rook", cannon: "cannon", soldier: "soldier"
-};
 export const pieceLetters: Record<PieceType, string> = {
   general: "k", advisor: "a", elephant: "b", horse: "n", rook: "r", cannon: "c", soldier: "p"
 };
@@ -40,10 +31,6 @@ export const pieceGlyphs: Record<Side, Record<PieceType, string>> = {
   red: { general: "帥", advisor: "仕", elephant: "相", horse: "馬", rook: "車", cannon: "炮", soldier: "兵" },
   black: { general: "將", advisor: "士", elephant: "象", horse: "馬", rook: "車", cannon: "砲", soldier: "卒" }
 };
-
-export function square(row: number, col: number): string {
-  return `${"abcdefghi"[col]}${10 - row}`;
-}
 
 export function moveLabel(game: Game, move: Move): string {
   const piece = game.pieces[move.moveId];
@@ -69,26 +56,6 @@ export function replayLine(before: Game, tokens: string[]): LineStep[] {
     if (current.gameOver) break;
   }
   return steps;
-}
-
-export function legalThreats(game: Game, attackerSide: Side): Threat[] {
-  if (game.gameOver) return [];
-  const threats: Threat[] = [];
-  const seen = new Set<string>();
-  for (const move of generateMoves(game, attackerSide)) {
-    if (move.captureId < 0) continue;
-    const key = `${move.moveId}-${move.captureId}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const setup = cloneGame(game);
-    setup.turn = attackerSide;
-    const captured = applyMove(setup, move.moveId, move.toRow, move.toCol);
-    const defended = captured ? generateMoves(captured.game, otherSide(attackerSide)).some(
-      (reply) => reply.captureId === move.moveId
-    ) : false;
-    threats.push({ attacker: move.moveId, target: move.captureId, defended });
-  }
-  return threats;
 }
 
 function normalizedScore(score: EngineScore, turn: Side, learner: Side): EngineScore {
@@ -195,30 +162,4 @@ export function makeReport(before: Game, after: Game, played: Move, preferred: E
 
 export function pieceAsset(piece: Piece): string {
   return `${import.meta.env.BASE_URL}assets/xiangqi/${piece.side === "red" ? "r" : "b"}_${pieceLetters[piece.type]}.png`;
-}
-
-export function openLanes(game: Game, side: Side, selectedId = -1): BoardHint[] {
-  const moves = generateMoves(game, side);
-  const candidates: Array<BoardHint & { distance: number }> = [];
-  for (const piece of game.pieces) {
-    if (piece.dead || piece.side !== side || (piece.type !== "rook" && piece.type !== "cannon")) continue;
-    if (selectedId >= 0 && piece.id !== selectedId) continue;
-    for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-      const ray = moves.filter((move) => move.moveId === piece.id &&
-        (dr !== 0 ? move.toCol === piece.col && Math.sign(move.toRow - piece.row) === dr
-          : move.toRow === piece.row && Math.sign(move.toCol - piece.col) === dc));
-      if (!ray.length) continue;
-      ray.sort((a, b) => Math.abs(b.toRow - piece.row) + Math.abs(b.toCol - piece.col) -
-        Math.abs(a.toRow - piece.row) - Math.abs(a.toCol - piece.col));
-      const move = ray[0];
-      const distance = Math.abs(move.toRow - piece.row) + Math.abs(move.toCol - piece.col);
-      if (distance < 2) continue;
-      const isCapture = move.captureId >= 0;
-      const text = isCapture && piece.type === "cannon"
-        ? `The ${pieceNames[piece.type]} on ${square(piece.row, piece.col)} has a capture route to ${square(move.toRow, move.toCol)} through one screen.`
-        : `The ${pieceNames[piece.type]} on ${square(piece.row, piece.col)} can reach ${square(move.toRow, move.toCol)} along this ${dc === 0 ? "file" : "rank"}.`;
-      candidates.push({ kind: "lane", text, from: { row: piece.row, col: piece.col }, to: { row: move.toRow, col: move.toCol }, distance });
-    }
-  }
-  return candidates.sort((a, b) => b.distance - a.distance).slice(0, selectedId >= 0 ? 4 : 3);
 }

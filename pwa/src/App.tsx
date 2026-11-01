@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FairyStockfishEngine, parseUciMove } from "./fairyStockfishEngine";
+import { boardPoint, legalThreats, openLanes, square, type BoardHint } from "./boardGuides";
 import { ROWS, COLS, createGame, cloneGame, pieceAt, inBounds, isLegalMove, applyMove, undoOne, chooseAiMove, inCheck } from "./xiangqi";
 import type { Difficulty, Game, Mode, Move, Piece, PieceType, Side } from "./types";
 
@@ -9,6 +10,8 @@ type PersistedState = {
   mode: Mode;
   difficulty: Difficulty;
   flipped: boolean;
+  showThreats: boolean;
+  showLanes: boolean;
 };
 
 const STORAGE_KEY = "exact-chinesechess-pwa-state-v1";
@@ -33,7 +36,7 @@ function normalizeGame(value: unknown): Game | null {
 }
 
 function loadState(): PersistedState {
-  const fallback: PersistedState = { game: createGame(), savedGame: null, mode: "red", difficulty: "medium", flipped: false };
+  const fallback: PersistedState = { game: createGame(), savedGame: null, mode: "red", difficulty: "medium", flipped: false, showThreats: false, showLanes: false };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return fallback;
@@ -43,7 +46,9 @@ function loadState(): PersistedState {
       savedGame: normalizeGame(parsed.savedGame) || null,
       mode: parsed.mode || fallback.mode,
       difficulty: parsed.difficulty || fallback.difficulty,
-      flipped: Boolean(parsed.flipped)
+      flipped: Boolean(parsed.flipped),
+      showThreats: parsed.showThreats === true,
+      showLanes: parsed.showLanes === true
     };
   } catch { return fallback; }
 }
@@ -62,9 +67,8 @@ function pieceAsset(piece: Piece): string {
 function boardAsset(): string { return `${PUBLIC_BASE}assets/xiangqi/board.png`; }
 
 function boardPosition(row: number, col: number, flipped: boolean): { left: string; top: string } {
-  const displayRow = flipped ? ROWS - 1 - row : row;
-  const displayCol = flipped ? COLS - 1 - col : col;
-  return { left: `${((30 + displayCol * 60) / 540) * 100}%`, top: `${((30 + displayRow * 60) / 600) * 100}%` };
+  const { x, y } = boardPoint(row, col, flipped);
+  return { left: `${x / 540 * 100}%`, top: `${y / 600 * 100}%` };
 }
 
 function activeCells(game: Game, selectedId: number, legalTargets: Set<string>, lastMove: Move | null, flipped: boolean) {
@@ -108,6 +112,8 @@ function App() {
   const [mode, setMode] = useState<Mode>(initial.mode);
   const [difficulty, setDifficulty] = useState<Difficulty>(initial.difficulty);
   const [flipped, setFlipped] = useState(initial.flipped);
+  const [showThreats, setShowThreats] = useState(initial.showThreats);
+  const [showLanes, setShowLanes] = useState(initial.showLanes);
   const [selectedId, setSelectedId] = useState<number>(-1);
   const [aiThinking, setAiThinking] = useState(false);
   const [engineState, setEngineState] = useState<"loading" | "ready" | "fallback">("loading");
@@ -147,6 +153,31 @@ function App() {
   const humanTurn = !isReviewing && (mode === "two" || (mode === "red" && game.turn === "red") || (mode === "black" && game.turn === "black"));
   const markers = useMemo(() => activeCells(displayGame, isReviewing ? -1 : selectedId, isReviewing ? new Set<string>() : legalTargets, lastMove, flipped), [displayGame, selectedId, legalTargets, lastMove, flipped, isReviewing]);
   const livePieces = displayGame.pieces.filter((p) => !p.dead);
+  const threatGuides = useMemo<BoardHint[]>(() => {
+    if (!showThreats) return [];
+    return (["red", "black"] as Side[]).flatMap((side) => legalThreats(displayGame, side).map((threat) => {
+      const attacker = displayGame.pieces[threat.attacker], target = displayGame.pieces[threat.target];
+      return {
+        kind: "threat" as const,
+        text: `${side === "red" ? "Red" : "Black"} ${pieceName[attacker.type]} on ${square(attacker.row, attacker.col)} can capture ${target.side === "red" ? "Red" : "Black"} ${pieceName[target.type]} on ${square(target.row, target.col)}; ${threat.defended ? "an immediate legal recapture exists" : "no immediate legal recapture exists"}.`,
+        from: { row: attacker.row, col: attacker.col }, to: { row: target.row, col: target.col },
+        targetId: target.id, danger: !threat.defended
+      };
+    }));
+  }, [displayGame, showThreats]);
+  const laneGuides = useMemo(() => {
+    if (!showLanes) return [];
+    const piece = !isReviewing && selectedId >= 0 ? displayGame.pieces[selectedId] : null;
+    const focus = piece && (piece.type === "rook" || piece.type === "cannon") ? piece.id : -1;
+    return openLanes(displayGame, displayGame.turn, focus);
+  }, [displayGame, showLanes, selectedId, isReviewing]);
+  const threatenedPieces = useMemo(() => {
+    const targets = new Map<number, BoardHint>();
+    for (const hint of threatGuides) {
+      if (hint.targetId !== undefined && (!targets.has(hint.targetId) || hint.danger)) targets.set(hint.targetId, hint);
+    }
+    return [...targets.values()];
+  }, [threatGuides]);
 
   function goReview(idx: number | null) {
     setReviewIdx(idx);
@@ -154,9 +185,9 @@ function App() {
   }
 
   useEffect(() => {
-    const state: PersistedState = { game, savedGame, mode, difficulty, flipped };
+    const state: PersistedState = { game, savedGame, mode, difficulty, flipped, showThreats, showLanes };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [game, savedGame, mode, difficulty, flipped]);
+  }, [game, savedGame, mode, difficulty, flipped, showThreats, showLanes]);
 
   useEffect(() => {
     const engine = new FairyStockfishEngine((state, detail) => {
@@ -314,12 +345,32 @@ function App() {
           <button onClick={clearBrowserSave}>Clear Browser Save</button>
         </section>
       ) : (
+        <>
+        <section className="guide-controls" aria-label="Board guides">
+          <div role="group" aria-label="Toggle board guides">
+            <button aria-pressed={showThreats} onClick={() => setShowThreats((value) => !value)}>Threats {showThreats ? "on" : "off"}</button>
+            <button aria-pressed={showLanes} onClick={() => setShowLanes((value) => !value)}>Lanes {showLanes ? "on" : "off"}</button>
+          </div>
+          {(showThreats || showLanes) && <p>
+            {showThreats && "Solid arrows show legal captures for either side. Double rings mean no immediate legal recapture. "}
+            {showLanes && `Dashed lines show ${displayGame.turn === "red" ? "Red" : "Black"}'s longest rook and cannon routes. Select a rook or cannon to focus.`}
+          </p>}
+          {(showThreats || showLanes) && <ul className="visually-hidden">{[...threatGuides, ...laneGuides].map((hint, index) => <li key={index}>{hint.text}</li>)}</ul>}
+        </section>
         <section className={["play-area", showHistory ? "" : "history-hidden"].join(" ")}>
           <div className="xiangqi-board" aria-label="Xiangqi board" role="grid" onClick={tapBoard}>
             <img className="board-art" src={boardAsset()} alt="" draggable="false" />
             {markers.map((marker) => (
               <span key={marker.key} className={marker.className} style={{ left: marker.left, top: marker.top }} aria-hidden="true" />
             ))}
+            {(showThreats || showLanes) && <svg className="board-guides" viewBox="0 0 540 600" preserveAspectRatio="none" aria-hidden="true">
+              <defs><marker id="play-guide-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#222" /></marker></defs>
+              {[...laneGuides, ...threatGuides].map((hint, index) => {
+                const from = boardPoint(hint.from.row, hint.from.col, flipped), to = boardPoint(hint.to.row, hint.to.col, flipped);
+                return <line key={`${hint.kind}-${index}`} className={`guide-line ${hint.kind}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} markerEnd="url(#play-guide-arrow)" />;
+              })}
+            </svg>}
+            {threatenedPieces.map((hint) => <span key={hint.targetId} className={`board-marker threatened${hint.danger ? " no-recapture" : ""}`} style={boardPosition(hint.to.row, hint.to.col, flipped)} aria-hidden="true" />)}
             {livePieces.map((piece) => (
               <img
                 key={piece.id}
@@ -354,6 +405,7 @@ function App() {
           </aside>
           )}
         </section>
+        </>
       )}
 
       <footer className="notes">

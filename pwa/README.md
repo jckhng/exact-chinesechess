@@ -15,6 +15,11 @@ the play app at `coach/` and opens from the **Coaching** control.
 - Saves the current game automatically in browser `localStorage`.
 - Supports manual Save and Load restore points.
 - Supports Play Red, Play Black, 2 Player, and AI Demo modes.
+- Offers independent **Threats** and **Lanes** board guides, off by default and
+  remembered between visits. Threats mark legal captures for both sides; lanes
+  show the side to move's longest rook/cannon routes and focus on a selected
+  rook or cannon. Both guides follow board flipping and move review, and work
+  offline without the analysis engine.
 - Uses a standalone TypeScript Xiangqi rules engine adapted from the native
   `xiangqi_engine.c` implementation.
 - Uses Fairy-Stockfish WASM for Xiangqi engine play when the browser supports

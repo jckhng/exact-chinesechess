@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { createGame, applyMove, generateMoves, isLegalMove } from "../src/xiangqi";
+import { createGame, cloneGame, applyMove, generateMoves, isLegalMove } from "../src/xiangqi";
 import { moveToUci } from "../src/fairyStockfishEngine";
-import { legalThreats, makeReport, replayLine } from "../src/coach/logic";
+import { makeReport, replayLine } from "../src/coach/logic";
+import { boardPoint, legalThreats, openLanes } from "../src/boardGuides";
 import { exercises, exerciseGame } from "../src/coach/exercises";
 
 function sparse() {
@@ -43,8 +44,36 @@ blackCannon.dead = false; blackCannon.row = 2; blackCannon.col = 4;
 target.dead = false; target.row = 6; target.col = 4;
 screen.dead = false; screen.row = 4; screen.col = 4;
 assert.ok(legalThreats(cannon, "black").some((threat) => threat.attacker === blackCannon.id && threat.target === target.id), "cannon needs one screen");
+assert.ok(openLanes(cannon, "black", blackCannon.id).some((lane) => lane.to.row === target.row && lane.to.col === target.col), "cannon lane reaches a target through one screen");
+const mirrored = cloneGame(cannon);
+for (const piece of cannon.pieces) {
+  const opposite = mirrored.pieces[piece.id < 16 ? piece.id + 16 : piece.id - 16];
+  opposite.dead = piece.dead;
+  opposite.row = 9 - piece.row;
+  opposite.col = 8 - piece.col;
+}
+const oppositeId = (id: number) => id < 16 ? id + 16 : id - 16;
+assert.deepEqual(legalThreats(mirrored, "red"), legalThreats(cannon, "black").map((threat) => ({ ...threat, attacker: oppositeId(threat.attacker), target: oppositeId(threat.target) })), "threat guides work for either color");
+const originalPosition = JSON.stringify(cannon);
+legalThreats(cannon, "red");
+openLanes(cannon, "red");
+assert.equal(JSON.stringify(cannon), originalPosition, "guides never change the displayed game or its history");
 screen.dead = true;
 assert.ok(!legalThreats(cannon, "black").some((threat) => threat.attacker === blackCannon.id && threat.target === target.id), "cannon cannot capture without screen");
+assert.ok(!openLanes(cannon, "black", blackCannon.id).some((lane) => lane.to.row === target.row && lane.to.col === target.col), "cannon lane cannot imply a capture without a screen");
+
+const pinned = sparse();
+const pinnedRook = pinned.pieces.find((piece) => piece.side === "red" && piece.type === "rook")!;
+const pinnedTarget = pinned.pieces.find((piece) => piece.side === "black" && piece.type === "soldier")!;
+pinnedRook.dead = false; pinnedRook.row = 5; pinnedRook.col = 4;
+pinnedTarget.dead = false; pinnedTarget.row = 5; pinnedTarget.col = 5;
+assert.ok(!legalThreats(pinned, "red").some((threat) => threat.attacker === pinnedRook.id && threat.target === pinnedTarget.id), "a pinned piece cannot create a legal capture guide");
+
+for (let row = 0; row < 10; row++) for (let col = 0; col < 9; col++) {
+  const normal = boardPoint(row, col), flipped = boardPoint(row, col, true);
+  assert.equal(normal.x + flipped.x, 540, "guide columns rotate with the pieces");
+  assert.equal(normal.y + flipped.y, 600, "guide rows rotate with the pieces");
+}
 
 const reply = generateMoves(afterFirst.game, "black")[0];
 assert.ok(reply);
