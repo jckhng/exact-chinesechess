@@ -17,7 +17,10 @@ if ("serviceWorker" in navigator) {
       .then(async (registration) => {
         await navigator.serviceWorker.ready;
         const reloaded = sessionStorage.getItem("exact-chinesechess-coi-reloaded") === "1";
-        if (!window.crossOriginIsolated && registration.active && !reloaded) {
+        // WebRTC works without isolation; do not tear down a friend setup or
+        // match just to enable the optional threaded AI on a first visit.
+        const friendSession = document.querySelector('[data-friend-session="active"]');
+        if (!window.crossOriginIsolated && registration.active && !reloaded && !friendSession) {
           sessionStorage.setItem("exact-chinesechess-coi-reloaded", "1");
           window.location.reload();
         }

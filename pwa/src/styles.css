@@ -18,9 +18,28 @@ body {
 }
 
 button,
-select {
+select,
+textarea {
   font: inherit;
 }
+
+.friend-panel { margin: 0 0 14px; padding: 14px; border: 2px solid #444; border-radius: 10px; background: #f7f7f7; }
+.friend-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.friend-heading h2 { margin: 0; font-size: 1.2rem; }
+.friend-heading button { flex-shrink: 0; white-space: nowrap; }
+.friend-panel p { line-height: 1.45; margin: 10px 0; }
+.friend-panel button { min-height: 42px; padding: 7px 12px; border: 2px solid #555; border-radius: 7px; background: #fff; color: #111; font-weight: 750; cursor: pointer; }
+.friend-panel button.friend-primary { color: #fff; background: #222; border-color: #222; }
+.friend-panel button:disabled, .settings select:disabled { opacity: .5; cursor: default; }
+.friend-panel label { display: block; margin: 12px 0 8px; font-weight: 750; }
+.friend-panel textarea { display: block; width: 100%; margin-top: 6px; padding: 10px; border: 1px solid #555; border-radius: 6px; background: white; color: #111; resize: vertical; font: .85rem ui-monospace, monospace; overflow-wrap: anywhere; }
+.friend-panel textarea[readonly] { background: #eee; }
+.friend-panel details { margin-top: 14px; }
+.friend-panel summary { cursor: pointer; font-weight: 750; }
+.friend-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.friend-panel .friend-note { font-size: .85rem; color: #444; }
+.friend-panel [role="alert"] { font-weight: 800; border-left: 3px solid #333; padding-left: 10px; }
+.friend-panel button:focus-visible, .friend-panel textarea:focus-visible, .friend-panel summary:focus-visible { outline: 3px solid #555; outline-offset: 3px; }
 
 .app {
   width: min(1120px, 100%);

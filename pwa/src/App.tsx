@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FairyStockfishEngine, parseUciMove } from "./fairyStockfishEngine";
+import { FairyStockfishEngine, moveToUci, parseUciMove } from "./fairyStockfishEngine";
+import FriendPanel, { friendStatusText, useFriendGame } from "./FriendPanel";
 import { boardPoint, guideRoutes, guideSegment, legalThreats, openLanes, square, type BoardHint } from "./boardGuides";
 import { ROWS, COLS, createGame, cloneGame, pieceAt, inBounds, isLegalMove, applyMove, undoOne, chooseAiMove, inCheck } from "./xiangqi";
 import type { Difficulty, Game, Mode, Move, Piece, PieceType, Side } from "./types";
@@ -106,8 +107,10 @@ function statusText(game: Game, mode: Mode, aiThinking: boolean): string {
 }
 
 function App() {
+  const friend = useFriendGame();
   const initial = useMemo(loadState, []);
-  const [game, setGame] = useState<Game>(initial.game);
+  const [soloGame, setGame] = useState<Game>(initial.game);
+  const game = friend.active ? friend.game : soloGame;
   const [savedGame, setSavedGame] = useState<Game | null>(initial.savedGame);
   const [mode, setMode] = useState<Mode>(initial.mode);
   const [difficulty, setDifficulty] = useState<Difficulty>(initial.difficulty);
@@ -123,6 +126,14 @@ function App() {
   const [showHistory, setShowHistory] = useState(true);
   const [reviewIdx, setReviewIdx] = useState<number | null>(null);
   const engineRef = useRef<FairyStockfishEngine | null>(null);
+  const soloFlipped = useRef(initial.flipped);
+
+  useEffect(() => {
+    setSelectedId(-1); setReviewIdx(null); setAiThinking(false); setMessage("");
+    if (friend.side) { soloFlipped.current = flipped; setFlipped(friend.side === "black"); }
+    else setFlipped(soloFlipped.current);
+  }, [friend.side]);
+  useEffect(() => { if (friend.active) setSelectedId(-1); }, [friend.game, friend.active]);
 
   const totalMoves = game.history.length;
   const isReviewing = reviewIdx !== null;
@@ -150,7 +161,9 @@ function App() {
   }, [game, selectedId, reviewIdx]);
 
   const lastMove = displayGame.history.length ? displayGame.history[displayGame.history.length - 1] : null;
-  const humanTurn = !isReviewing && (mode === "two" || (mode === "red" && game.turn === "red") || (mode === "black" && game.turn === "black"));
+  const humanTurn = !isReviewing && (friend.active
+    ? friend.status === "connected" && !friend.pending && game.turn === friend.side
+    : mode === "two" || (mode === "red" && game.turn === "red") || (mode === "black" && game.turn === "black"));
   const markers = useMemo(() => activeCells(displayGame, isReviewing ? -1 : selectedId, isReviewing ? new Set<string>() : legalTargets, lastMove, flipped), [displayGame, selectedId, legalTargets, lastMove, flipped, isReviewing]);
   const livePieces = displayGame.pieces.filter((p) => !p.dead);
   const threatGuides = useMemo<BoardHint[]>(() => {
@@ -191,9 +204,9 @@ function App() {
   }
 
   useEffect(() => {
-    const state: PersistedState = { game, savedGame, mode, difficulty, flipped, showThreats, showLanes };
+    const state: PersistedState = { game: soloGame, savedGame, mode, difficulty, flipped: friend.active ? soloFlipped.current : flipped, showThreats, showLanes };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [game, savedGame, mode, difficulty, flipped, showThreats, showLanes]);
+  }, [soloGame, savedGame, mode, difficulty, flipped, showThreats, showLanes, friend.active]);
 
   useEffect(() => {
     const engine = new FairyStockfishEngine((state, detail) => {
@@ -207,6 +220,7 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (friend.active || friend.open) { setAiThinking(false); return; }
     if (game.gameOver) { setAiThinking(false); return; }
     const shouldAiMove = mode === "demo" || (mode === "red" && game.turn === "black") || (mode === "black" && game.turn === "red");
     if (!shouldAiMove) return;
@@ -231,9 +245,10 @@ function App() {
       setAiThinking(false);
     }, mode === "demo" ? 160 : 260);
     return () => { cancelled = true; window.clearTimeout(id); };
-  }, [difficulty, game, mode]);
+  }, [difficulty, game, mode, friend.active, friend.open]);
 
   function newGame() {
+    if (friend.active) return;
     setGame(createGame());
     engineRef.current?.newGame();
     setSelectedId(-1);
@@ -243,6 +258,7 @@ function App() {
   }
 
   function undoMove() {
+    if (friend.active) return;
     let next = undoOne(game);
     if (mode !== "two" && next.history.length > 0) next = undoOne(next);
     setGame(next);
@@ -255,6 +271,7 @@ function App() {
   function saveGame() { setSavedGame(cloneGame(game)); setMessage("Saved game in this browser."); }
 
   function loadGame() {
+    if (friend.active) return;
     if (!savedGame) { setMessage("No saved game yet."); return; }
     setGame(cloneGame(savedGame));
     setSelectedId(-1);
@@ -271,7 +288,8 @@ function App() {
     if (selectedId >= 0 && legalTargets.has(`${row},${col}`)) {
       const result = applyMove(game, selectedId, row, col);
       if (!result) { setMessage("Illegal move."); return; }
-      setGame(result.game);
+      if (friend.active) { if (!friend.move(moveToUci(result.move))) return; }
+      else setGame(result.game);
       setMessage(`${game.turn === "red" ? "Red" : "Black"}: ${moveLabel(game, result.move)}`);
       setSelectedId(-1);
       return;
@@ -296,15 +314,16 @@ function App() {
     <main className="app">
       <header className="hero">
         <h1>Exact Chinese Chess</h1>
-        <p>{message || statusText(game, mode, aiThinking)}</p>
+        <p>{friend.active ? friendStatusText(friend) : message || statusText(game, mode, aiThinking)}</p>
       </header>
 
       <section className="toolbar" aria-label="Game controls">
-        <button onClick={newGame}>New</button>
+        <button onClick={newGame} disabled={friend.active}>New</button>
+        <button aria-label="Play a friend" onClick={() => { friend.setOpen(true); setPage("game"); }}>Play friend</button>
         <a className="toolbar-link" href={`${PUBLIC_BASE}coach/`}>Coaching</a>
-        <button onClick={undoMove} disabled={game.history.length === 0 || aiThinking}>Undo</button>
+        <button onClick={undoMove} disabled={friend.active || game.history.length === 0 || aiThinking}>Undo</button>
         <button onClick={saveGame}>Save</button>
-        <button onClick={loadGame}>Load</button>
+        <button onClick={loadGame} disabled={friend.active}>Load</button>
         <button onClick={() => setFlipped((v) => !v)}>Flip</button>
         <button onClick={() => setShowHistory((v) => !v)} aria-pressed={showHistory}>
           {showHistory ? "Hide Moves" : "Show Moves"}
@@ -312,9 +331,12 @@ function App() {
         <button onClick={() => setPage((v) => (v === "game" ? "about" : "game"))}>{page === "game" ? "About" : "Game"}</button>
       </section>
 
-      <section className="settings" aria-label="Settings">
+      <FriendPanel friend={friend} />
+      {friend.active && message === "Saved game in this browser." && <p role="status">Saved a local copy of this friend game.</p>}
+
+      {!friend.active && <section className="settings" aria-label="Settings">
         <label>Mode
-          <select value={mode} onChange={(e) => setMode(e.target.value as Mode)}>
+          <select value={mode} disabled={friend.active} onChange={(e) => setMode(e.target.value as Mode)}>
             <option value="red">Play Red</option>
             <option value="black">Play Black</option>
             <option value="two">2 Player</option>
@@ -322,13 +344,13 @@ function App() {
           </select>
         </label>
         <label>Level
-          <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)}>
+          <select value={difficulty} disabled={friend.active} onChange={(e) => setDifficulty(e.target.value as Difficulty)}>
             <option value="easy">Easy</option>
             <option value="medium">Medium</option>
             <option value="hard">Hard</option>
           </select>
         </label>
-      </section>
+      </section>}
 
       {page === "about" ? (
         <section className="about-page">
@@ -348,7 +370,7 @@ function App() {
             crazy-electron, for the e-ink/KUAL porting groundwork that informed the Exact apps.
           </p>
           <p>Licensing: keep this project under GPL-family terms. See the parent project&apos;s license and provenance files.</p>
-          <button onClick={clearBrowserSave}>Clear Browser Save</button>
+          <button onClick={clearBrowserSave} disabled={friend.active}>Clear Browser Save</button>
         </section>
       ) : (
         <>
@@ -415,12 +437,13 @@ function App() {
       )}
 
       <footer className="notes">
+        {friend.active ? <p>Friend match. Save keeps a local copy; keep both game tabs open to stay connected.</p> :
         <p>
           Auto-continue is always on. Save/Load creates a manual browser restore point. Engine:{" "}
           {engineState === "ready" ? "Fairy-Stockfish WASM" : engineState === "loading" ? "loading Fairy-Stockfish" : "built-in fallback AI"}.
           {engineState === "fallback" && engineDetail ? ` ${engineDetail}` : ""}
           {engineState !== "ready" ? ` crossOriginIsolated=${String(window.crossOriginIsolated)}` : ""}
-        </p>
+        </p>}
       </footer>
     </main>
   );

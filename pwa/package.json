@@ -10,7 +10,8 @@
     "build:web": "npm run build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "test:coach": "node tests/run-coach-tests.mjs"
+    "test:coach": "node tests/run-coach-tests.mjs",
+    "test:friend": "node tests/run-friend-tests.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

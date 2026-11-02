@@ -15,6 +15,7 @@ the play app at `coach/` and opens from the **Coaching** control.
 - Saves the current game automatically in browser `localStorage`.
 - Supports manual Save and Load restore points.
 - Supports Play Red, Play Black, 2 Player, and AI Demo modes.
+- Supports direct friend games through a manually shared invitation and reply.
 - Offers independent **Threats** and **Lanes** board guides, off by default and
   remembered between visits. Threats mark threatened pieces on both sides;
   selecting a piece reveals its capture routes. Thin, offset guides keep the
@@ -53,6 +54,35 @@ The production output is generated in:
 ```text
 pwa/dist
 ```
+
+## Play a Friend
+
+1. Choose **Play friend**, then **Create invitation**. You play Red.
+2. Copy or share the invitation link. Keep the original game tab open.
+3. Your friend opens the link and chooses **Accept invitation**. They play Black
+   and send their generated **reply code** back to you.
+4. Paste that reply code into your original waiting game and choose
+   **Connect to friend**. Play starts when both browsers have connected.
+
+The invitation and reply carry the WebRTC connection details; they expire after
+30 minutes. There is no application signaling endpoint, room database, or TURN
+relay. Public Google STUN endpoints help discover a direct route; if discovery
+is blocked, locally gathered routes can still work on the same network. Some
+networks will not connect without a relay, so direct connectivity is not
+guaranteed. The invitation data lives in the URL fragment, which is not sent
+to the static hosting server, and in the messaging service you choose to share
+it through.
+
+Moves use an ordered, encrypted WebRTC data channel. Both browsers check move
+legality, turn, sequence, and resulting board, and acknowledge received moves.
+Play pauses on a lost connection or mismatched board. Keep both tabs open:
+refreshing or leaving requires a new invitation and starts a new friend game.
+**Save** keeps a local copy for later offline play. The solo game remains
+separate and returns when you leave the friend game. AI, Undo, Load, and mode
+changes are disabled during a friend match.
+
+`npm run test:friend` checks invitation encoding and validation, direct-only
+configuration, move validation, acknowledgments, and synchronization failures.
 
 ## Coaching Companion
 
